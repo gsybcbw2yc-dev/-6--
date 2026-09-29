@@ -109,7 +109,7 @@ function populateMoveSelects() {
 }
 
 function getMove(select) {
-  return MOVES[parseInt(select.value, 10)];
+  return MOVE_DATA(select.value];
 }
 
 function updateStarter() {
@@ -136,7 +136,7 @@ function render() {
 
   var i, m;
   for (i = 0; i < combo.length; i++) {
-    m = MOVES[combo[i]];
+    m = MOVE_DATA[combo[i]];
     total += Number(m.damage) || 0;
     html += '<div class="route-item"><span class="route-name">' +
       (i + 2) + '. ' + m.name + '</span><span class="route-dmg">' +
