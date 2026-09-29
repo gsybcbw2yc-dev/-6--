@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SF6 豪鬼 コンボビルダー</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101114;color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+main{max-width:760px;margin:0 auto;padding:18px}
+section{background:#1b1d21;border:1px solid #35383e;border-radius:14px;padding:16px;margin-bottom:14px}
+h1{font-size:24px;margin:0 0 6px}
+h2{font-size:18px;margin:0 0 10px}
+.small{color:#a9adb5;font-size:13px;line-height:1.5}
+label{display:block;font-size:13px;color:#a9adb5;margin-bottom:5px}
+select,button{width:100%;min-height:50px;border-radius:10px;border:1px solid #4a4e56;background:#272a30;color:#fff;padding:12px;font-size:16px}
+button{font-weight:700;cursor:pointer}
+button:active{transform:translateY(1px)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.data{background:#25282e;border-radius:9px;padding:9px}
+.data small{display:block;color:#9297a0;font-size:11px}
+.data b{font-size:16px}
+.route{display:flex;flex-direction:column;gap:7px;margin-top:12px}
+.route-item{display:flex;align-items:center;justify-content:space-between;background:#25282e;border-radius:9px;padding:10px 12px}
+.route-name{font-weight:600}
+.route-dmg{font-weight:800;white-space:nowrap}
+.total-label{color:#a9adb5;font-size:13px;margin-top:16px}
+.total{font-size:40px;font-weight:900;line-height:1.1;margin-top:2px}
+.status{min-height:20px;margin:10px 0 0}
+.ok{color:#9fe6a0}
+.notice{background:#24272d;border-radius:9px;padding:10px;margin-bottom:12px}.state-known{color:#9fe6a0}.state-unknown{color:#f2c879}.data b{overflow-wrap:anywhere}
+@media(max-width:600px){main{padding:12px}.grid{grid-template-columns:1fr}}
+
+.validity-box{margin-top:10px;padding:10px 12px;border-radius:8px;background:#f3f4f6;font-size:14px}
+.validity-ok{color:#166534}
+.validity-ng{color:#b91c1c;background:#fef2f2}
+
+#nextSlots{display:flex;flex-direction:column;gap:8px}
+#nextSlots label{margin-top:4px}
+#nextSlots select{margin-bottom:4px}
+</style>
+</head>
+
+<body>
+<main>
+<section>
+<h1>SF6 豪鬼 コンボビルダー</h1>
+<p class="small">始動技を選び、次の技を順番に追加します。現段階では始動補正のみ反映します。</p>
+<div class="notice small">例：立ち弱P 300 → 立ち中P 600 = <b>780 damage</b></div>
+<div class="notice small">※「相手の状態」と「ヒット状態」を選択できます。資料で確認できない状態別フレームは「未登録」と表示し、推測値は入れていません。</div>
+<div class="grid">
+<div><label for="opponentState">相手の状態</label><select id="opponentState"><option value="standing">立ち</option><option value="crouching">しゃがみ</option><option value="airborne">空中</option><option value="down">ダウン</option><option value="wall">壁やられ</option>
+<option value="burnout">バーンアウト</option></select></div>
+<div><label for="hitState">ヒット状態</label><select id="hitState"><option value="normal">通常ヒット</option><option value="counter">カウンターヒット</option><option value="punish">パニッシュカウンター</option><option value="block">ガード</option>
+</select></div>
+</div>
+<div id="conditionStatus" class="small status">条件：立ち / 通常ヒット</div>
+</section>
+
+<section>
+<h2>① 始動技</h2>
+<label for="starter">始動技を選択</label>
+<select id="starter">
+  <option value="">始動技を選択してください</option>
+</select>
+<div class="data-grid">
+  <div class="data"><small>技</small><b id="starterName">—</b></div>
+  <div class="data"><small>ダメージ</small><b id="starterDamage">—</b></div>
+  <div class="data"><small>始動補正</small><b id="starterCorrection">—</b></div>
+</div>
+</section>
+
+<section>
+<h2>② コンボを組み立てる</h2>
+<div id="nextSlots">
+  <label for="next">2つ目の技</label>
+  <select id="next" disabled>
+    <option value="">先に始動技を選択してください</option>
+  </select>
+</div>
+<div class="data-grid">
+  <div class="data"><small>技</small><b id="nextName">—</b></div>
+  <div class="data"><small>ダメージ</small><b id="nextDamage">—</b></div>
+  <div class="data"><small>発生</small><b id="nextStartup">—</b></div>
+  <div class="data"><small>ヒット</small><b id="nextHit">—</b></div>
+  <div class="data"><small>状態別フレーム</small><b id="nextStateFrame">—</b></div>
+  <div class="data"><small>状態メモ</small><b id="nextStateNote">—</b></div>
+</div>
+
+<div class="grid" style="margin-top:10px">
+  <button id="add" type="button" disabled>＋ コンボに追加</button>
+  <button id="clear" type="button">コンボをクリア</button>
+</div>
+<p id="status" class="small status">始動技を選択してください。</p>
+</section>
+
+<section>
+<h2>③ コンボ</h2>
+<div id="route" class="route"></div>
+<div class="total-label">合計ダメージ</div>
+<div id="damage" class="total">0 damage</div>
+</section>
+
+<script>
+var MOVE_DATA = {"1":{"id":"stLP","name":"立ち弱P（面割り）","category":"normal","frame":{"startup":"4","active":"4-6","recovery":"7","onHit":"4","onBlock":"-1","cancel":"C"},"damage":300,"notes":"—","value":1,"displayName":"立ち弱P（面割り）","starterCorrection":0.8},"2":{"id":"stLK","name":"立ち弱K（脛斬り）","category":"normal","frame":{"startup":"5","active":"5-7","recovery":"11","onHit":"2","onBlock":"-4","cancel":"C"},"damage":300,"notes":"—","value":2,"displayName":"立ち弱K（脛斬り）","starterCorrection":0.8},"3":{"id":"stMP","name":"立ち中P（豪掌）","category":"normal","frame":{"startup":"6","active":"6-9","recovery":"11","onHit":"4","onBlock":"1","cancel":"C"},"damage":600,"notes":"空振り時硬直2F増加","value":3,"displayName":"立ち中P（豪掌）","starterCorrection":1.0},"4":{"id":"stMK","name":"立ち中K（腸潰し）","category":"normal","frame":{"startup":"7","active":"7-11","recovery":"15","onHit":"3","onBlock":"-3","cancel":"C"},"damage":700,"notes":"強制立ち効果","value":4,"displayName":"立ち中K（腸潰し）","starterCorrection":1.0},"5":{"id":"stHP","name":"立ち強P（岩砕突き）","category":"normal","frame":{"startup":"9","active":"9-13","recovery":"18","onHit":"3","onBlock":"-3","cancel":"C"},"damage":800,"notes":"—","value":5,"displayName":"立ち強P（岩砕突き）","starterCorrection":1.0},"6":{"id":"stHK","name":"立ち強K（首撥ね）","category":"normal","frame":{"startup":"13","active":"13-27 / 13-15, 24-27","recovery":"15","onHit":"7","onBlock":"3","cancel":null},"damage":800,"notes":"強制立ち効果空振り時硬直1F増加","value":6,"displayName":"立ち強K（首撥ね）","starterCorrection":1.0},"7":{"id":"crLP","name":"しゃがみ弱P（足止め）","category":"normal","frame":{"startup":"4","active":"4-5","recovery":"9","onHit":"5","onBlock":"-1","cancel":"C"},"damage":300,"notes":"—","value":7,"displayName":"しゃがみ弱P（足止め）","starterCorrection":0.8},"8":{"id":"crLK","name":"しゃがみ弱K（楔打ち）","category":"normal","frame":{"startup":"5","active":"5-6","recovery":"10","onHit":"3","onBlock":"-3","cancel":null},"damage":200,"notes":"—","value":8,"displayName":"しゃがみ弱K（楔打ち）","starterCorrection":0.8},"9":{"id":"crMP","name":"しゃがみ中P（膝折り豪掌）","category":"normal","frame":{"startup":"6","active":"6-8","recovery":"14","onHit":"6","onBlock":"-1","cancel":"C"},"damage":600,"notes":"空振り時硬直2F増加","value":9,"displayName":"しゃがみ中P（膝折り豪掌）","starterCorrection":1.0},"10":{"id":"crMK","name":"しゃがみ中K（踝払い）","category":"normal","frame":{"startup":"8","active":"8-10","recovery":"19","onHit":"0","onBlock":"-6","cancel":"C"},"damage":500,"notes":"—","value":10,"displayName":"しゃがみ中K（踝払い）","starterCorrection":0.8},"11":{"id":"crHP","name":"しゃがみ強P（獄門掌）","category":"normal","frame":{"startup":"8","active":"8-15","recovery":"19","onHit":"1","onBlock":"-8","cancel":"C"},"damage":900,"notes":"—","value":11,"displayName":"しゃがみ強P（獄門掌）","starterCorrection":1.0},"12":{"id":"crHK","name":"しゃがみ強K（刎脚）","category":"normal","frame":{"startup":"9","active":"9-11","recovery":"23","onHit":"D","onBlock":"-12","cancel":null},"damage":900,"notes":"パニッシュカウンター時ダウン時間増加、ハードノックダウン","value":12,"displayName":"しゃがみ強K（刎脚）","starterCorrection":1.0},"13":{"id":"jLP","name":"ジャンプ弱P（眉間割り）","category":"normal_air","frame":{"startup":"4","active":"4-13","recovery":"着地後3","onHit":null,"onBlock":null,"cancel":null},"damage":300,"notes":"—","value":13,"displayName":"ジャンプ弱P（眉間割り）","starterCorrection":1.0},"14":{"id":"jLK","name":"ジャンプ弱K（飛び膝）","category":"normal_air","frame":{"startup":"6","active":"6-15","recovery":"着地後3","onHit":null,"onBlock":null,"cancel":null},"damage":300,"notes":"めくり性能","value":14,"displayName":"ジャンプ弱K（飛び膝）","starterCorrection":1.0},"15":{"id":"jMP","name":"ジャンプ中P（跳び朱刀）","category":"normal_air","frame":{"startup":"8","active":"8-11","recovery":"着地後3","onHit":null,"onBlock":null,"cancel":"C"},"damage":700,"notes":"空中ヒット時吹き飛びダウン","value":15,"displayName":"ジャンプ中P（跳び朱刀）","starterCorrection":1.0},"16":{"id":"jMK","name":"ジャンプ中K（首斬り）","category":"normal_air","frame":{"startup":"7","active":"7-12","recovery":"着地後3","onHit":null,"onBlock":null,"cancel":null},"damage":500,"notes":"めくり性能","value":16,"displayName":"ジャンプ中K（首斬り）","starterCorrection":1.0},"17":{"id":"jHP","name":"ジャンプ強P（羅刹拳）","category":"normal_air","frame":{"startup":"9","active":"9-14","recovery":"着地後3","onHit":null,"onBlock":null,"cancel":null},"damage":800,"notes":"空中カウンター/パニッシュカウンター時叩きつけダウン","value":17,"displayName":"ジャンプ強P（羅刹拳）","starterCorrection":1.0},"18":{"id":"jHK","name":"ジャンプ強K（斬鉄脚）","category":"normal_air","frame":{"startup":"12","active":"12-17","recovery":"着地後3","onHit":null,"onBlock":null,"cancel":null},"damage":800,"notes":"—","value":18,"displayName":"ジャンプ強K（斬鉄脚）","starterCorrection":1.0},"19":{"id":"zuigai","name":"頭蓋破殺","category":"unique","frame":{"startup":"20","active":"20-24 / 20, 22-24","recovery":"18","onHit":"3","onBlock":"-3","cancel":null},"damage":600,"notes":"※初段が空振り時のみ2段目が中段判定","value":19,"displayName":"頭蓋破殺","starterCorrection":1.0},"20":{"id":"ressou","name":"裂槍脚","category":"unique","frame":{"startup":"10","active":"10-12","recovery":"15","onHit":"5","onBlock":"-4","cancel":null},"damage":700,"notes":"空振り時硬直4F増加ガード時硬直3F増加","value":20,"displayName":"裂槍脚","starterCorrection":1.0},"21":{"id":"ragou","name":"羅豪脚","category":"unique","frame":{"startup":"12","active":"12-16","recovery":"27","onHit":"D","onBlock":"-15","cancel":"C"},"damage":800,"notes":"—","value":21,"displayName":"羅豪脚","starterCorrection":1.0},"22":{"id":"rikuu","name":"六腑穿ち","category":"unique","frame":{"startup":"7","active":"7-9","recovery":"21","onHit":"-1","onBlock":"-6","cancel":"C"},"damage":700,"notes":"","value":22,"displayName":"六腑穿ち","starterCorrection":1.0},"23":{"id":"gaikiri","name":"骸斬り","category":"unique","frame":{"startup":"20","active":"20-22","recovery":"20","onHit":"1","onBlock":"-3","cancel":null},"damage":600,"notes":"","value":23,"displayName":"骸斬り","starterCorrection":1.0},"24":{"id":"kikou1","name":"鬼哭連撃（1段目）","category":"target_combo","frame":{"startup":"13","active":"13-16","recovery":"20","onHit":"4","onBlock":"-3","cancel":null},"damage":800,"notes":"","value":24,"displayName":"鬼哭連撃（1段目）","starterCorrection":1.0},"25":{"id":"kikou2","name":"鬼哭連撃（2段目）","category":"target_combo","frame":{"startup":"10","active":"10-12","recovery":"21","onHit":"D","onBlock":"-10","cancel":null},"damage":600,"notes":"","value":25,"displayName":"鬼哭連撃（2段目）","starterCorrection":1.0},"26":{"id":"kikou3","name":"鬼哭連撃（3段目）","category":"target_combo","frame":{"startup":"9","active":"9-11","recovery":"24","onHit":"D","onBlock":"-13","cancel":null},"damage":875,"notes":"","value":26,"displayName":"鬼哭連撃（3段目）","starterCorrection":1.0},"27":{"id":"tenma","name":"天魔空刃脚","category":"jump_unique","frame":{"startup":"16","active":"16-着地まで","recovery":"着地後13","onHit":null,"onBlock":null,"cancel":null},"damage":800,"notes":"","value":27,"displayName":"天魔空刃脚","starterCorrection":1.0},"28":{"id":"gouhadou_L1_L","name":"弱 豪波動拳(Lv1)","category":"special","frame":{"startup":"16","active":null,"recovery":"全体 46","onHit":"0","onBlock":"-4","cancel":"SA3"},"damage":700,"notes":"25F以上ボタンを押して離すとLv2が発動49F以上ボタンを押して離すとLv3が発動","value":28,"displayName":"弱豪波動拳（Lv1)","starterCorrection":1.0},"29":{"id":"gouhadou_L2_L","name":"弱 豪波動拳(Lv2)","category":"special","frame":{"startup":"31","active":null,"recovery":"全体 60","onHit":"D","onBlock":"2","cancel":"SA3"},"damage":1000,"notes":"—","value":29,"displayName":"弱豪波動拳（Lv2)","starterCorrection":1.0},"30":{"id":"gouhadou_L3_L","name":"弱 豪波動拳(Lv3)","category":"special","frame":{"startup":"56","active":null,"recovery":"全体 82","onHit":"D","onBlock":"21","cancel":"SA3"},"damage":1350,"notes":"76F目までにヒット/ガード時、硬直5F減少","value":30,"displayName":"弱豪波動拳（Lv3)","starterCorrection":1.0},"31":{"id":"gouhadou_L1_M","name":"中 豪波動拳(Lv1)","category":"special","frame":{"startup":"14","active":null,"recovery":"全体 46","onHit":"-2","onBlock":"-6","cancel":"SA3"},"damage":700,"notes":"25F以上ボタンを押して離すとLv2が発動49F以上ボタンを押して離すとLv3が発動","value":31,"displayName":"中豪波動拳（Lv1)","starterCorrection":1.0},"32":{"id":"gouhadou_L2_M","name":"中 豪波動拳(Lv2)","category":"special","frame":{"startup":"31","active":null,"recovery":"全体 60","onHit":"D","onBlock":"2","cancel":"SA3"},"damage":1000,"notes":"—","value":32,"displayName":"中豪波動拳（Lv2)","starterCorrection":1.0},"33":{"id":"gouhadou_L3_M","name":"中 豪波動拳(Lv3)","category":"special","frame":{"startup":"56","active":null,"recovery":"全体 82","onHit":"D","onBlock":"21","cancel":"SA3"},"damage":1350,"notes":"76F目までにヒット/ガード時、硬直5F減少","value":33,"displayName":"中豪波動拳（Lv3)","starterCorrection":1.0},"34":{"id":"gouhadou_L1_H","name":"強 豪波動拳(Lv1)","category":"special","frame":{"startup":"12","active":null,"recovery":"全体 46","onHit":"-4","onBlock":"-8","cancel":"SA3"},"damage":700,"notes":"25F以上ボタンを押して離すとLv2が発動49F以上ボタンを押して離すとLv3が発動","value":34,"displayName":"強豪波動拳（Lv1)","starterCorrection":1.0},"35":{"id":"gouhadou_L2_H","name":"強 豪波動拳(Lv2)","category":"special","frame":{"startup":"31","active":null,"recovery":"全体 60","onHit":"D","onBlock":"2","cancel":"SA3"},"damage":1000,"notes":"—","value":35,"displayName":"強豪波動拳（Lv2)","starterCorrection":1.0},"36":{"id":"gouhadou_L3_H","name":"強 豪波動拳(Lv3)","category":"special","frame":{"startup":"56","active":null,"recovery":"全体 82","onHit":"D","onBlock":"21","cancel":"SA3"},"damage":1350,"notes":"76F目までにヒット/ガード時、硬直5F減少","value":36,"displayName":"強豪波動拳（Lv3)","starterCorrection":1.0},"37":{"id":"gouhadou_OD","name":"OD 豪波動拳","category":"special","frame":{"startup":"12","active":null,"recovery":"全体 41","onHit":"D","onBlock":"2","cancel":"SA2"},"damage":1000,"notes":"25F以上ホールドすると性能変化","value":37,"displayName":"OD豪波動拳","starterCorrection":1.0},"38":{"id":"gouhadou_OD_hold","name":"OD 豪波動拳（ホールド）","category":"special","frame":{"startup":"31","active":null,"recovery":"全体 57","onHit":"D","onBlock":"21","cancel":"SA2"},"damage":1350,"notes":"50F目までにヒット/ガード時、硬直5F減少","value":38,"displayName":"OD豪波動拳（ホールド）","starterCorrection":1.0},"39":{"id":"zankuu_L","name":"弱 斬空波動拳","category":"special_air","frame":{"startup":"13","active":null,"recovery":"着地後9","onHit":null,"onBlock":null,"cancel":null},"damage":600,"notes":"空弾属性に対して無敵の技に当たらない","value":39,"displayName":"弱 斬空波動拳","starterCorrection":1.0},"40":{"id":"zankuu_M","name":"中 斬空波動拳","category":"special_air","frame":{"startup":"13","active":null,"recovery":"着地後9","onHit":null,"onBlock":null,"cancel":null},"damage":600,"notes":"空弾属性に対して無敵の技に当たらない","value":40,"displayName":"中 斬空波動拳","starterCorrection":1.0},"41":{"id":"zankuu_H","name":"強 斬空波動拳","category":"special_air","frame":{"startup":"13","active":null,"recovery":"着地後9","onHit":null,"onBlock":null,"cancel":null},"damage":600,"notes":"空弾属性に対して無敵の技に当たらない","value":41,"displayName":"強 斬空波動拳","starterCorrection":1.0},"42":{"id":"zankuu_OD","name":"OD 斬空波動拳","category":"special_air","frame":{"startup":"6","active":null,"recovery":"着地後9","onHit":"D","onBlock":null,"cancel":null},"damage":900,"notes":"空弾属性に対して無敵の技に当たらない","value":42,"displayName":"OD 斬空波動拳","starterCorrection":1.0},"43":{"id":"gousho_L","name":"弱 豪昇龍拳","category":"special","frame":{"startup":"5","active":"5-14","recovery":"21+着地後12","onHit":"D","onBlock":"-23","cancel":"SA3"},"damage":1100,"notes":"1-14F 空中判定の打撃・空弾属性に対して無敵 8-35F 空中判定","value":43,"displayName":"弱 豪昇龍拳","starterCorrection":1.0},"44":{"id":"gousho_M","name":"中 豪昇龍拳","category":"special","frame":{"startup":"6","active":"6-15","recovery":"30+着地後12","onHit":"D","onBlock":"-30","cancel":"SA3"},"damage":1300,"notes":"1-9F 空中判定の打撃・空弾属性に対して無敵 9-45F 空中判定","value":44,"displayName":"中 豪昇龍拳","starterCorrection":1.0},"45":{"id":"gousho_H","name":"強 豪昇龍拳","category":"special","frame":{"startup":"7","active":"7-17","recovery":"35+着地後15","onHit":"D","onBlock":"-36","cancel":"SA3"},"damage":1500,"notes":"1-9F 空中判定の打撃・空弾属性に対して無敵 10-52F 空中判定","value":45,"displayName":"強 豪昇龍拳","starterCorrection":1.0},"46":{"id":"gousho_OD","name":"OD 豪昇龍拳","category":"special","frame":{"startup":"6","active":"6-16","recovery":"37+着地後15","onHit":"D","onBlock":"-39","cancel":null},"damage":1700,"notes":"1-8F 完全無敵 8-53F 空中判定","value":46,"displayName":"OD 豪昇龍拳","starterCorrection":1.0},"47":{"id":"tatsu_L","name":"弱 竜巻斬空脚","category":"special","frame":{"startup":"12","active":"12-13","recovery":"21","onHit":"D","onBlock":"-13","cancel":null},"damage":600,"notes":"52-57F 空中判定 空振り時硬直6F増加","value":47,"displayName":"弱 竜巻斬空脚","starterCorrection":1.0},"48":{"id":"tatsu_M","name":"中 竜巻斬空脚","category":"special","frame":{"startup":"11","active":"11-28 / 11-12, 26-28","recovery":"30","onHit":"D","onBlock":"-13","cancel":null},"damage":1000,"notes":"53-58F 空中判定","value":48,"displayName":"中 竜巻斬空脚","starterCorrection":1.0},"49":{"id":"tatsu_H","name":"強 竜巻斬空脚","category":"special","frame":{"startup":"7","active":"7-51 / 7-9, 16-18, 28-30, 49-51","recovery":"23+着地後12","onHit":"D","onBlock":"-59","cancel":null},"damage":1600,"notes":"8-72F 空中判定","value":49,"displayName":"強 竜巻斬空脚","starterCorrection":1.0},"50":{"id":"tatsu_OD","name":"OD 竜巻斬空脚","category":"special","frame":{"startup":"13","active":"13-37 / 13-14, 19-20, 25-26, 30-31, 36-37","recovery":"26","onHit":"D","onBlock":"-17","cancel":null},"damage":1000,"notes":"54-64F 空中判定","value":50,"displayName":"OD 竜巻斬空脚","starterCorrection":1.0},"51":{"id":"air_tatsu","name":"空中竜巻斬空脚","category":"special_air","frame":{"startup":"11","active":"11-26 / 11-12, 18-19, 25-26","recovery":"着地後16","onHit":"D","onBlock":null,"cancel":null},"damage":900,"notes":"—","value":51,"displayName":"空中竜巻斬空脚","starterCorrection":1.0},"52":{"id":"air_tatsu_OD","name":"OD 空中竜巻斬空脚","category":"special_air","frame":{"startup":"11","active":"11-28 / 11-12, 14-16, 18-20, 22-24, 27-28","recovery":"着地後16","onHit":"D","onBlock":null,"cancel":null},"damage":1300,"notes":"—","value":52,"displayName":"OD 空中竜巻斬空脚","starterCorrection":1.0},"53":{"id":"goujin_L1_L","name":"弱 金剛灼火（1段目）","category":"special","frame":{"startup":"15","active":"15-17","recovery":"23","onHit":"1","onBlock":"-8","cancel":"SA3"},"damage":700,"notes":"19-22F ヒット時専用技に派生可","value":53,"displayName":"弱 金剛灼火（1段目）","starterCorrection":1.0},"54":{"id":"goujin_L2_L","name":"弱 金剛灼火（2段目）","category":"special","frame":{"startup":"7","active":"7-10","recovery":"18","onHit":"3","onBlock":"-10","cancel":"SA3"},"damage":500,"notes":"—","value":54,"displayName":"弱 金剛灼火（2段目）","starterCorrection":1.0},"55":{"id":"goujin_L1_M","name":"中 金剛灼火（1段目）","category":"special","frame":{"startup":"19","active":"19-21","recovery":"20","onHit":"2","onBlock":"-4","cancel":"SA3"},"damage":800,"notes":"23-26F ヒット時専用技に派生可 空振り時硬直3F増加 パニッシュカウンター時+10F","value":55,"displayName":"中 金剛灼火（1段目）","starterCorrection":1.0},"56":{"id":"goujin_L2_M","name":"中 金剛灼火（2段目）","category":"special","frame":{"startup":"7","active":"7-10","recovery":"32","onHit":"D","onBlock":"-18","cancel":"SA3"},"damage":600,"notes":"—","value":56,"displayName":"中 金剛灼火（2段目）","starterCorrection":1.0},"57":{"id":"goujin_L1_H","name":"強 金剛灼火（1段目）","category":"special","frame":{"startup":"23","active":"23-25","recovery":"19","onHit":"3","onBlock":"-3","cancel":"SA3"},"damage":900,"notes":"27-30F ヒット時専用技に派生可 空振り時硬直2F増加 パニッシュカウンター時+12F","value":57,"displayName":"強 金剛灼火（1段目）","starterCorrection":1.0},"58":{"id":"goujin_L2_H","name":"強 金剛灼火（2段目）","category":"special","frame":{"startup":"11","active":"11-14","recovery":"28","onHit":"D","onBlock":"-14","cancel":"SA3"},"damage":600,"notes":"—","value":58,"displayName":"強 金剛灼火（2段目）","starterCorrection":1.0},"59":{"id":"goujin_OD1","name":"OD 金剛灼火（1段目）","category":"special","frame":{"startup":"18","active":"18-20","recovery":"23","onHit":"1","onBlock":"-3","cancel":"SA2"},"damage":700,"notes":"22-25F ヒット時専用技に派生可 パニッシュカウンター時に膝崩れダウンに+39F","value":59,"displayName":"OD 金剛灼火（1段目）","starterCorrection":1.0},"60":{"id":"goujin_OD2","name":"OD 金剛灼火（2段目）","category":"special","frame":{"startup":"7","active":"7-17 / 7-10, 15-17","recovery":"25","onHit":"D","onBlock":"-18","cancel":"SA2"},"damage":700,"notes":"壁到達時に壁やられ","value":60,"displayName":"OD 金剛灼火（2段目）","starterCorrection":1.0},"61":{"id":"hyakki_L","name":"弱 百鬼襲","category":"hyakki","frame":{"startup":null,"active":null,"recovery":null,"onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"18-40Fまで、百鬼豪斬、百鬼潜影を除いた各種派生技でキャンセル可能 7F以降、空中判定","value":61,"displayName":"弱 百鬼襲","starterCorrection":1.0},"62":{"id":"hyakki_M","name":"中 百鬼襲","category":"hyakki","frame":{"startup":null,"active":null,"recovery":null,"onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"18-40Fまで、百鬼豪斬、百鬼潜影を除いた各種派生技でキャンセル可能 7F以降、空中判定","value":62,"displayName":"中 百鬼襲","starterCorrection":1.0},"63":{"id":"hyakki_H","name":"強 百鬼襲","category":"hyakki","frame":{"startup":null,"active":null,"recovery":null,"onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"18-40Fまで、百鬼豪斬、百鬼潜影を除いた各種派生技でキャンセル可能 7F以降、空中判定","value":63,"displayName":"強 百鬼襲","starterCorrection":1.0},"64":{"id":"hyakki_OD","name":"OD 百鬼襲","category":"hyakki","frame":{"startup":null,"active":null,"recovery":null,"onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"16-40Fまで、百鬼豪斬、百鬼潜影を除いた各種派生技でキャンセル可能 16-40Fまで、天魔豪斬空でキャンセル可能 7F以降、空中判定","value":64,"displayName":"OD 百鬼襲","starterCorrection":1.0},"65":{"id":"hyakki_gouzan","name":"百鬼豪斬（百鬼襲中に）","category":"hyakki_followup","frame":{"startup":"8","active":"8-11","recovery":"19","onHit":"D","onBlock":"2","cancel":null},"damage":1000,"notes":"—","value":65,"displayName":"百鬼豪斬（百鬼襲中に）","starterCorrection":1.0},"66":{"id":"hyakki_goushou","name":"百鬼豪衝（百鬼襲中に）","category":"hyakki_followup","frame":{"startup":"16","active":"16-着地まで","recovery":"着地後9","onHit":"D","onBlock":"1～10","cancel":null},"damage":1300,"notes":"ガードさせた高度によって硬直差が変化","value":66,"displayName":"百鬼豪衝（百鬼襲中に）","starterCorrection":1.0},"67":{"id":"hyakki_goujin","name":"百鬼豪刃（百鬼襲中に）","category":"hyakki_followup","frame":{"startup":"13","active":"13-着地まで","recovery":"着地後9","onHit":"1～10","onBlock":"-4～5","cancel":null},"damage":700,"notes":"※OD百鬼襲から発動時、始動補正20% ヒット・ガードさせた高度によって硬直差が変化 空振り時硬直5F増加","value":67,"displayName":"百鬼豪刃（百鬼襲中に）","starterCorrection":1.0},"68":{"id":"hyakki_senshin","name":"百鬼潜影（百鬼襲中に）","category":"hyakki_followup","frame":{"startup":null,"active":null,"recovery":"全体 5","onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"相手を飛び越えて着地時硬直5F増加","value":68,"displayName":"百鬼潜影（百鬼襲中に）","starterCorrection":1.0},"69":{"id":"hyakki_gouzankuu","name":"百鬼豪斬空（OD百鬼襲中に）","category":"hyakki_followup","frame":{"startup":"6","active":null,"recovery":"着地後9","onHit":"D","onBlock":null,"cancel":null},"damage":900,"notes":"—","value":69,"displayName":"百鬼豪斬空（OD百鬼襲中に）","starterCorrection":1.0},"70":{"id":"hyakki_gourasen","name":"百鬼豪螺旋（OD百鬼襲中に）","category":"hyakki_followup","frame":{"startup":"5","active":"5-23 / 5-6, 9-11, 14-16, 18-20, 22-23","recovery":"着地後10","onHit":"D","onBlock":null,"cancel":null},"damage":1300,"notes":"—","value":70,"displayName":"百鬼豪螺旋（OD百鬼襲中に）","starterCorrection":1.0},"71":{"id":"ashura_forward","name":"阿修羅閃空（前方）","category":"movement","frame":{"startup":null,"active":null,"recovery":"全体 51","onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"21-37Fまで、朧に派生可能","value":71,"displayName":"阿修羅閃空（前方）","starterCorrection":1.0},"72":{"id":"ashura_back","name":"阿修羅閃空（後方）","category":"movement","frame":{"startup":null,"active":null,"recovery":"全体 49","onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"—","value":72,"displayName":"阿修羅閃空（後方）","starterCorrection":1.0},"73":{"id":"oboro","name":"朧（阿修羅閃空（前方）中に）","category":"special_attack","frame":{"startup":"8","active":"8-10","recovery":"50","onHit":"D","onBlock":null,"cancel":null},"damage":2200,"notes":"パニッシュカウンター時：ダメージ2900・SAゲージ4000増加","value":73,"displayName":"朧（阿修羅閃空（前方）中に）","starterCorrection":1.0},"74":{"id":"sa1","name":"SA1 滅殺豪波動","category":"super_art","frame":{"startup":"10","active":null,"recovery":"全体 106","onHit":"D","onBlock":"-41","cancel":null},"damage":2200,"notes":"11-14F 打撃・投げに対して無敵 最低保障ダメージ30％ カウンター/パニッシュカウンターで数値が変動しない","value":74,"displayName":"SA1 滅殺豪波動","starterCorrection":1.0},"75":{"id":"sa1_air","name":"SA1 天魔豪斬空","category":"super_art_air","frame":{"startup":"14","active":null,"recovery":"着地後33","onHit":"D","onBlock":null,"cancel":null},"damage":2000,"notes":"最低保障ダメージ30％ カウンター/パニッシュカウンターで数値が変動しない 空弾属性に対して無敵の技に当たらない","value":75,"displayName":"SA1 天魔豪斬空","starterCorrection":1.0},"76":{"id":"sa2","name":"SA2 崩天劫火","category":"super_art","frame":{"startup":"9","active":"9-11","recovery":"52","onHit":"D","onBlock":"-35","cancel":null},"damage":2800,"notes":"11F 完全無敵 壁到達時に壁やられ 最低保障ダメージ40％ カウンター/パニッシュカウンターで数値が変動しない","value":76,"displayName":"SA2 崩天劫火","starterCorrection":1.0},"77":{"id":"sa3","name":"SA3 禍坏","category":"super_art","frame":{"startup":"8","active":"8-11","recovery":"58","onHit":"D","onBlock":"-41","cancel":null},"damage":4000,"notes":"11F 完全無敵 最低保障ダメージ50％ カウンター/パニッシュカウンターで数値が変動しない ※必殺技キャンセル時のみ適用","value":77,"displayName":"SA3 禍坏","starterCorrection":1.0},"78":{"id":"ca3","name":"CA 禍坏（体力25%以下で）","category":"super_art","frame":{"startup":"8","active":"8-11","recovery":"58","onHit":"D","onBlock":"-41","cancel":null},"damage":4500,"notes":"11F 完全無敵 最低保障ダメージ50％ カウンター/パニッシュカウンターで数値が変動しない ※必殺技キャンセル時のみ適用","value":78,"displayName":"CA 禍坏（体力25%以下で）","starterCorrection":1.0},"79":{"id":"shungokusatsu","name":"CA 瞬獄殺弱弱弱 強","category":"ca","frame":{"startup":"6+0","active":"6-27","recovery":"57","onHit":"D","onBlock":null,"cancel":null},"damage":4700,"notes":"1F 完全無敵 6-27F 飛び道具無敵 最低保障ダメージ50％ カウンター/パニッシュカウンターで数値が変動しない ※必殺技キャンセル時のみ適用","value":79,"displayName":"CA 瞬獄殺弱弱弱 強","starterCorrection":1.0},"80":{"id":"goushouha_throw","name":"豪衝破（近距離で）","category":"throw","frame":{"startup":"5","active":"5-7","recovery":"23","onHit":"D","onBlock":null,"cancel":null},"damage":1200,"notes":"パニッシュカウンター時：ダメージ2040・SAゲージ4000増加・ハードノックダウン","value":80,"displayName":"豪衝破（近距離で）","starterCorrection":1.0},"81":{"id":"shuretsuto_throw","name":"朱裂刀（近距離で）","category":"throw","frame":{"startup":"5","active":"5-7","recovery":"23","onHit":"D","onBlock":null,"cancel":null},"damage":1200,"notes":"パニッシュカウンター時：ダメージ2040・SAゲージ4000増加・ハードノックダウン","value":81,"displayName":"朱裂刀（近距離で）","starterCorrection":1.0},"82":{"id":"step_forward","name":"前方ステップ","category":"system","frame":{"startup":null,"active":null,"recovery":"全体 19","onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"—","value":82,"displayName":"前方ステップ","starterCorrection":1.0},"83":{"id":"step_back","name":"後方ステップ","category":"system","frame":{"startup":null,"active":null,"recovery":"全体 23","onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"11-15F 投げ無敵","value":83,"displayName":"後方ステップ","starterCorrection":1.0},"84":{"id":"drive_impact","name":"ドライブインパクト（鬼殺し）","category":"system","frame":{"startup":"26","active":"26-27","recovery":"35","onHit":"D","onBlock":"-3","cancel":null},"damage":800,"notes":"12-27F アーマー判定（2回） ヒットバックでステージ端に到達すると壁やられが発生 パニッシュカウンター、もしくはアーマー成立後にヒットで性能変化","value":84,"displayName":"ドライブインパクト（鬼殺し）","starterCorrection":0.8},"85":{"id":"drive_reversal_guard","name":"[ガード時]ドライブリバーサル（双破）","category":"system","frame":{"startup":"20","active":"20-22","recovery":"26","onHit":"D","onBlock":"-6","cancel":null},"damage":500,"notes":"リカバリアブルダメージ 12-12F 完全無敵 ヒット時硬直5F増加","value":85,"displayName":"[ガード時]ドライブリバーサル（双破）","starterCorrection":1.0},"86":{"id":"drive_reversal_wakeup","name":"[起き上がり時]ドライブリバーサル（双破）","category":"system","frame":{"startup":"18","active":"18-20","recovery":"26","onHit":"D","onBlock":"-6","cancel":null},"damage":500,"notes":"リカバリアブルダメージ 10-20F 完全無敵 ヒット時硬直5F増加","value":86,"displayName":"[起き上がり時]ドライブリバーサル（双破）","starterCorrection":1.0},"87":{"id":"parry","name":"ドライブパリィ","category":"system","frame":{"startup":"1","active":"[※2] 1-12","recovery":"33","onHit":null,"onBlock":null,"cancel":"※1"},"damage":0,"notes":"※1 動作の4F目からドライブラッシュでキャンセル可 ※2 ボタンホールドでパリィの持続を延長可 硬直部分はガードのみ可 動作中常に被パニッシュカウンター判定","value":87,"displayName":"ドライブパリィ","starterCorrection":1.0},"88":{"id":"perfect_parry_strike","name":"ジャストパリィ（打撃）","category":"system","frame":{"startup":"1","active":null,"recovery":"1","onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"方向入力条件あり。成立後5F完全無敵等","value":88,"displayName":"ジャストパリィ（打撃）","starterCorrection":1.0},"89":{"id":"perfect_parry_projectile","name":"ジャストパリィ（飛び道具）","category":"system","frame":{"startup":"1","active":null,"recovery":"10","onHit":null,"onBlock":null,"cancel":null},"damage":0,"notes":"暗転演出なし。相手は動作終了まで強制パニッシュカウンター","value":89,"displayName":"ジャストパリィ（飛び道具）","starterCorrection":1.0},"90":{"id":"drive_rush_parry","name":"パリィドライブラッシュ","category":"system","frame":{"startup":null,"active":null,"recovery":"全体 45","onHit":null,"onBlock":null,"cancel":"※"},"damage":0,"notes":"暗転10F ※動作9F目から攻撃行動にキャンセル可 24F目からパリィ以外の行動でキャンセル可","value":90,"displayName":"パリィドライブラッシュ","starterCorrection":1.0},"91":{"id":"drive_rush_cancel","name":"キャンセルドライブラッシュ","category":"system","frame":{"startup":null,"active":null,"recovery":"全体 46","onHit":null,"onBlock":null,"cancel":"※"},"damage":0,"notes":"暗転9F ※動作10F目から攻撃行動にキャンセル可 25F目からパリィ以外の行動でキャンセル可","value":91,"displayName":"キャンセルドライブラッシュ","starterCorrection":1.0}};
+var combo = [];
+
+var starter = document.getElementById("starter");
+var next = document.getElementById("next");
+var add = document.getElementById("add");
+var clear = document.getElementById("clear");
+
+var starterName = document.getElementById("starterName");
+var starterDamage = document.getElementById("starterDamage");
+var starterCorrection = document.getElementById("starterCorrection");
+var nextName = document.getElementById("nextName");
+var nextDamage = document.getElementById("nextDamage");
+var nextStartup = document.getElementById("nextStartup");
+var nextHit = document.getElementById("nextHit");
+var nextStateFrame = document.getElementById("nextStateFrame");
+var nextStateNote = document.getElementById("nextStateNote");
+var opponentState = document.getElementById("opponentState");
+var hitState = document.getElementById("hitState");
+var conditionStatus = document.getElementById("conditionStatus");
+
+// 資料で確認できた状態差だけを登録。未確認値は推測しない。
+var CONDITION_DATA = {
+  crHK: { punish: { note: "ダウン時間増加・ハードノックダウン" } },
+  goujin_L1_M: { punish: { plusFrame: 10, note: "パニッシュカウンター時 +10F" } },
+  goujin_L1_H: { punish: { plusFrame: 12, note: "パニッシュカウンター時 +12F" } },
+  goujin_OD1: { punish: { note: "膝崩れダウンに +39F" } },
+  drive_impact: { punish: { note: "パニッシュカウンターで性能変化" }, counter: { note: "アーマー成立後ヒット等で性能変化" } },
+  oboro: { punish: { damage: 2900, note: "パニッシュカウンター時ダメージ2900" } },
+  goushouha_throw: { punish: { damage: 2040, note: "パニッシュカウンター時ダメージ2040・ハードノックダウン" } },
+  shuretsuto_throw: { punish: { damage: 2040, note: "パニッシュカウンター時ダメージ2040・ハードノックダウン" } }
+};
+
+function getCondition(move) {
+  if (!move) return null;
+  var byMove = CONDITION_DATA[move.id];
+  return byMove ? (byMove[hitState.value] || null) : null;
+}
+function getConditionLabel() {
+  return opponentState.options[opponentState.selectedIndex].textContent + " / " + hitState.options[hitState.selectedIndex].textContent;
+}
+function updateConditionUI() {
+  conditionStatus.textContent = "条件：" + getConditionLabel();
+  updateNext();
+  render();
+  updateComboValidity();
+}
+
+var route = document.getElementById("route");
+var damage = document.getElementById("damage");
+var status = document.getElementById("status");
+
+function getMove(value) {
+  return MOVE_DATA[String(value)] || null;
+}
+
+function populateSelect(select) {
+  select.innerHTML = "";
+  Object.keys(MOVE_DATA).forEach(function(value) {
+    var move = MOVE_DATA[value];
+    select.add(new Option(move.displayName, value));
+  });
+}
+
+function updateStarter() {
+  var move = getMove(starter.value);
+
+  if (!move) {
+    starterName.textContent = "—";
+    starterDamage.textContent = "—";
+    starterCorrection.textContent = "—";
+    return;
+  }
+
+  starterName.textContent = move.displayName;
+  starterDamage.textContent = move.damage + " dmg";
+  starterCorrection.textContent =
+    move.starterCorrection < 1
+      ? Math.round(move.starterCorrection * 100) + "%"
+      : "100%";
+}
+
+function getActiveNextSelect() {
+  var selects = document.querySelectorAll("#nextSlots select");
+  return selects.length ? selects[selects.length - 1] : null;
+}
+
+function updateNext(select) {
+  select = select || getActiveNextSelect();
+  if (!select) return;
+
+  var move = getMove(select.value);
+  var f = move ? (move.frame || {}) : {};
+  var condition = getCondition(move);
+
+  if (!move) {
+    nextName.textContent = "—"; nextDamage.textContent = "—"; nextStartup.textContent = "—"; nextHit.textContent = "—";
+    nextStateFrame.textContent = "—"; nextStateNote.textContent = "—"; add.disabled = true;
+    return;
+  }
+
+  nextName.textContent = move.displayName;
+  var shownDamage = condition && condition.damage != null ? condition.damage : move.damage;
+  nextDamage.textContent = shownDamage + " dmg" + (condition && condition.damage != null ? " ※状態補正" : "");
+  nextStartup.textContent = f.startup || "—";
+  nextHit.textContent = f.onHit || "—";
+
+  var adjusted = getSituationAdvantage(move);
+  if (adjusted !== null) {
+    nextStateFrame.textContent = (adjusted >= 0 ? "+" : "") + adjusted + "F";
+    nextStateFrame.className = "state-known";
+  } else if (condition && condition.note) {
+    nextStateFrame.textContent = "特殊状態";
+    nextStateFrame.className = "state-known";
+  } else {
+    nextStateFrame.textContent = "未登録";
+    nextStateFrame.className = "state-unknown";
+  }
+
+  nextStateNote.textContent = condition && condition.note ? condition.note : "この条件の追加フレーム値は未登録";
+  add.disabled = false;
+  updateComboValidity();
+}
+
+
+/* ===== Combo validity layer =====
+   This first pass uses the currently selected opponent/hit state and the
+   displayed on-hit advantage where the source data provides a numeric value.
+   It deliberately avoids guessing exact cancel routes.
+*/
+function numericFrame(v){
+  if (v === null || v === undefined) return null;
+  var s = String(v).trim();
+  var m = s.match(/^-?\d+/);
+  return m ? parseInt(m[0],10) : null;
+}
+/* バーンアウト時はガード硬直差のみ+4F。ヒット時の有利Fは変更しない。 */
+function getSituationAdvantage(move){
+  if (!move || !move.frame) return null;
+  var opponent = document.getElementById('opponentState');
+  var os = opponent ? opponent.value : 'standing';
+
+  var state = document.getElementById('hitState');
+  var hs = state ? state.value : 'normal';
+
+  /*
+    Burnout rule:
+    The +4F applies to block stun, not hit advantage.
+    Therefore only when the selected situation is a guarded attack,
+    use onBlock + 4F. Hit / Counter / Punish keep their respective onHit values.
+  */
+  if (os === 'burnout' && hs === 'block') {
+    var block = numericFrame(move.frame.onBlock);
+    return block === null ? null : block + 4;
+  }
+
+  var base = move.frame.onHit;
+  var n = numericFrame(base);
+  /* Known source notes with explicit counter/Punish additions. */
+  if (hs === 'counter' && move.id === 'goujin_L1_M') n = 12;
+  if (hs === 'punish' && move.id === 'goujin_L1_M') n = 12;
+  if (hs === 'punish' && move.id === 'goujin_L1_H') n = 15;
+  return n;
+}
+function getNextStartup(move){
+  return move && move.frame ? numericFrame(move.frame.startup) : null;
+}
+function comboCheck(previous, next){
+  if (!previous || !next) return {ok:true, text:'判定対象外'};
+  var adv = getSituationAdvantage(previous);
+  var startup = getNextStartup(next);
+  if (adv === null || startup === null) {
+    return {ok:true, text:'フレーム未登録（仮許可）'};
+  }
+  if (adv >= startup) {
+    return {ok:true, text:'繋がる可能性あり（' + adv + 'F ＞ ' + startup + 'F）'};
+  }
+  return {ok:false, text:'フレーム上は繋がらない（' + adv + 'F ＜ ' + startup + 'F）'};
+}
+function updateComboValidity(){
+  var msg = document.getElementById('validityStatus');
+  if (!msg) return;
+  if (!combo.length) {
+    msg.innerHTML = 'コンボ成立判定：始動技を選択してください';
+    return;
+  }
+  var previous = getMoveByValue(combo[combo.length-1]);
+  var activeSelect = getActiveNextSelect();
+  var next = activeSelect ? getMove(activeSelect.value) : null;
+  if (!next) {
+    msg.innerHTML = 'コンボ成立判定：次の技を選択してください';
+    return;
+  }
+  var result = comboCheck(previous, next);
+  msg.innerHTML = 'コンボ成立判定：<strong>' + result.text + '</strong>';
+  msg.className = result.ok ? 'validity-ok' : 'validity-ng';
+}
+
+function render() {
+  var first = getMove(starter.value);
+
+  if (!first) {
+    route.innerHTML = "";
+    damage.textContent = "0 damage";
+    return;
+  }
+
+  var total = Number(first.damage) || 0;
+  var html = '<div class="route-item"><span class="route-name">1. ' +
+    first.displayName + '</span><span class="route-dmg">' +
+    first.damage + ' dmg</span></div>';
+
+  for (var i = 0; i < combo.length; i++) {
+    var move = getMove(combo[i]);
+    if (!move) continue;
+
+    var rate = (i === 0) ? first.starterCorrection : 1;
+    var condition = getCondition(move);
+    var baseDamage = condition && condition.damage != null ? condition.damage : (Number(move.damage) || 0);
+    var shownDamage = Math.floor(baseDamage * rate);
+    total += shownDamage;
+
+    html += '<div class="route-item"><span class="route-name">' +
+      (i + 2) + '. ' + move.displayName +
+      '</span><span class="route-dmg">' +
+      shownDamage + ' dmg' +
+      (rate < 1 ? ' <small>(' + Math.round(rate * 100) + '%)</small>' : '') +
+      '</span></div>';
+  }
+
+  route.innerHTML = html;
+  damage.textContent = total + " damage";
+}
+
+opponentState.onchange = updateConditionUI;
+hitState.onchange = updateConditionUI;
+
+function makeNextSelect(number) {
+  var wrap = document.getElementById("nextSlots");
+  var label = document.createElement("label");
+  label.textContent = number + "つ目の技";
+  label.setAttribute("for", "next" + number);
+
+  var select = document.createElement("select");
+  select.id = "next" + number;
+  select.disabled = false;
+  select.add(new Option("技を選択してください", ""));
+
+  Object.keys(MOVE_DATA).forEach(function(value) {
+    select.add(new Option(MOVE_DATA[value].displayName, value));
+  });
+
+  select.addEventListener("change", function() {
+    updateNext(select);
+    updateComboValidity();
+  });
+
+  wrap.appendChild(label);
+  wrap.appendChild(select);
+  return select;
+}
+
+starter.onchange = function() {
+  combo = [];
+  var wrap = document.getElementById("nextSlots");
+  wrap.innerHTML = "";
+
+  if (starter.value) {
+    var firstNext = makeNextSelect(2);
+    firstNext.id = "next";
+    status.textContent = "2つ目の技を選択してください。";
+  } else {
+    var label = document.createElement("label");
+    label.textContent = "2つ目の技";
+    var firstNext = document.createElement("select");
+    firstNext.id = "next";
+    firstNext.disabled = true;
+    firstNext.add(new Option("先に始動技を選択してください", ""));
+    wrap.appendChild(label);
+    wrap.appendChild(firstNext);
+    status.textContent = "始動技を選択してください。";
+  }
+
+  updateStarter();
+  updateNext(getActiveNextSelect());
+  render();
+  updateComboValidity();
+};
+
+add.onclick = function() {
+  var active = getActiveNextSelect();
+  if (!active || !active.value) return;
+
+  var value = parseInt(active.value, 10);
+  if (!MOVE_DATA[String(value)]) return;
+
+  combo.push(value);
+  render();
+
+  var number = combo.length + 2;
+  var newSelect = makeNextSelect(number);
+  status.textContent = number + "つ目の技を選択してください。";
+  newSelect.focus();
+  updateNext(newSelect);
+  updateComboValidity();
+};
+
+clear.onclick = function() {
+  combo = [];
+  starter.value = "";
+  var wrap = document.getElementById("nextSlots");
+  wrap.innerHTML = '<label for="next">2つ目の技</label><select id="next" disabled><option value="">先に始動技を選択してください</option></select>';
+  status.textContent = "コンボをクリアしました。";
+  updateStarter();
+  updateNext(getActiveNextSelect());
+  render();
+  updateComboValidity();
+};
+
+opponentState.onchange = updateConditionUI;
+hitState.onchange = updateConditionUI;
+
+updateStarter();
+updateNext(getActiveNextSelect());
+render();
+updateComboValidity();
+</script>
+</main>
+</body>
+</html>
